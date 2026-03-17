@@ -146,6 +146,23 @@ const routes = [
         ],
       },
       {
+        path: 'merch',
+        name: 'EventMerch',
+        component: () => import('@/pages/EventTicketMerch.vue'),
+        children: [
+          {
+            path: '',
+            name: 'EventMerchManage',
+            component: () => import('@/pages/EventMerchManage.vue'),
+          },
+          {
+            path: 'insights',
+            name: 'EventMerchInsights',
+            component: () => import('@/pages/EventMerchInsights.vue'),
+          },
+        ],
+      },
+      {
         path: 'partner',
         name: 'EventPartner',
         component: () => import('@/pages/EventPartner.vue'),

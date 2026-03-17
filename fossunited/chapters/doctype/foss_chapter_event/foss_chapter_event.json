@@ -77,6 +77,8 @@
   "paid_tshirts_available",
   "column_break_cntx",
   "t_shirt_price",
+  "merch_section",
+  "merch_items",
   "section_break_hjyr",
   "custom_fields"
  ],
@@ -481,6 +483,19 @@
    "fieldname": "map_coordinate",
    "fieldtype": "Data",
    "label": "Map Coordinates"
+  },
+  {
+   "fieldname": "merch_section",
+   "fieldtype": "Section Break",
+   "label": "Merchandise",
+   "depends_on": "eval:doc.is_paid_event==1"
+  },
+  {
+   "fieldname": "merch_items",
+   "fieldtype": "Table",
+   "label": "Merch Items",
+   "options": "FOSS Event Merch",
+   "depends_on": "eval:doc.is_paid_event==1"
   }
  ],
  "has_web_view": 1,

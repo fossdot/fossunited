@@ -387,6 +387,10 @@ def has_valid_permission(event_id: str) -> bool:
     """
     session_user = frappe.session.user
 
+    # System Manager / Administrator has full access
+    if frappe.db.exists("Has Role", {"role": "System Manager", "parent": session_user}):
+        return True
+
     # Allow if user has "Chapter Team Member" role AND is a member of the chapter
     if frappe.db.exists("Has Role", {"role": "Chapter Team Member", "parent": session_user}):
         chapter_id = frappe.db.get_value(EVENT, event_id, "chapter")
@@ -629,3 +633,195 @@ def download_all_tickets(ticket_ids):
         format="[Designer] Event Ticket",
         no_letterhead=True,
     )
+
+
+@frappe.whitelist()
+def save_event_merch_item(
+    event: str,
+    merch_name: str,
+    price: float,
+    enabled: int = 1,
+    color_options: str = "",
+    size_options: str = "",
+    image: str = "",
+    extra_images: str = "",
+    row_name: str = None,
+):
+    """
+    Upsert a merch item on the FOSS Chapter Event's merch_items child table.
+    If row_name is given, update that row; otherwise append a new one.
+    """
+    if not has_valid_permission(event):
+        frappe.throw(
+            "You are not authorized to manage merch for this event", frappe.PermissionError
+        )
+
+    doc = frappe.get_doc(EVENT, event)
+
+    if row_name:
+        # Update existing row
+        row = next((r for r in doc.merch_items if r.name == row_name), None)
+        if not row:
+            frappe.throw("Merch item not found")
+        row.merch_name = merch_name
+        row.price = price
+        row.enabled = int(enabled)
+        row.color_options = color_options
+        row.size_options = size_options
+        row.image = image
+        row.extra_images = extra_images
+    else:
+        # Append new row
+        doc.append(
+            "merch_items",
+            {
+                "merch_name": merch_name,
+                "price": price,
+                "enabled": int(enabled),
+                "color_options": color_options,
+                "size_options": size_options,
+                "image": image,
+                "extra_images": extra_images,
+            },
+        )
+
+    doc.save(ignore_permissions=True)
+    return True
+
+
+@frappe.whitelist()
+def delete_event_merch_item(event: str, row_name: str):
+    """Remove a merch item row from the event."""
+    if not has_valid_permission(event):
+        frappe.throw(
+            "You are not authorized to manage merch for this event", frappe.PermissionError
+        )
+
+    doc = frappe.get_doc(EVENT, event)
+    doc.merch_items = [r for r in doc.merch_items if r.name != row_name]
+    doc.save(ignore_permissions=True)
+    return True
+
+
+@frappe.whitelist()
+def get_merch_insights(event_id: str) -> dict:
+    """
+    Return per-item sales counts and revenue for all merch sold at an event.
+    Groups by merch_name → colour → size.
+    """
+    if not has_valid_permission(event_id):
+        frappe.throw(
+            "You are not authorized to view merch insights for this event", frappe.PermissionError
+        )
+
+    rows = frappe.db.sql(
+        """
+        SELECT
+            tm.merch_name,
+            tm.color,
+            tm.size,
+            SUM(tm.quantity)       AS qty,
+            SUM(tm.quantity * tm.price) AS revenue
+        FROM `tabFOSS Ticket Merch` tm
+        INNER JOIN `tabFOSS Event Ticket` t ON t.name = tm.parent
+        WHERE t.event = %(event_id)s
+        GROUP BY tm.merch_name, tm.color, tm.size
+        ORDER BY tm.merch_name, tm.color, tm.size
+        """,
+        {"event_id": event_id},
+        as_dict=True,
+    )
+
+    # Aggregate into per-item structure
+    items_map = {}
+    for row in rows:
+        name = row["merch_name"]
+        if name not in items_map:
+            items_map[name] = {
+                "merch_name": name,
+                "total_qty": 0,
+                "total_revenue": 0.0,
+                "breakdown": [],
+            }
+        items_map[name]["total_qty"] += int(row["qty"] or 0)
+        items_map[name]["total_revenue"] += float(row["revenue"] or 0)
+        items_map[name]["breakdown"].append(
+            {
+                "color": row["color"] or "",
+                "size": row["size"] or "",
+                "qty": int(row["qty"] or 0),
+            }
+        )
+
+    items = list(items_map.values())
+    grand_total_revenue = sum(i["total_revenue"] for i in items)
+
+    return {"items": items, "grand_total_revenue": grand_total_revenue}
+
+
+@frappe.whitelist()
+def get_merch_delivery(event_id: str, search_query: str = "") -> list:
+    """
+    Return tickets (with their merch rows) matching the search query.
+    Searches ticket name, attendee full_name, and email.
+    """
+    if not has_valid_permission(event_id):
+        frappe.throw(
+            "You are not authorized to manage merch delivery for this event",
+            frappe.PermissionError,
+        )
+
+    if search_query:
+        q = f"%{search_query}%"
+        tickets = frappe.db.sql(
+            """
+            SELECT name, full_name, email
+            FROM `tabFOSS Event Ticket`
+            WHERE event = %(event_id)s
+              AND (name LIKE %(q)s OR full_name LIKE %(q)s OR email LIKE %(q)s)
+            ORDER BY creation DESC
+            LIMIT 50
+            """,
+            {"event_id": event_id, "q": q},
+            as_dict=True,
+        )
+    else:
+        tickets = []
+
+    result = []
+    for ticket in tickets:
+        merch_rows = frappe.db.get_all(
+            "FOSS Ticket Merch",
+            filters={"parent": ticket["name"], "parentfield": "merch_items"},
+            fields=["name", "merch_name", "color", "size", "quantity", "delivered"],
+        )
+        if merch_rows:
+            result.append(
+                {
+                    "ticket_name": ticket["name"],
+                    "full_name": ticket["full_name"],
+                    "email": ticket["email"],
+                    "merch_items": merch_rows,
+                }
+            )
+
+    return result
+
+
+@frappe.whitelist()
+def mark_merch_delivered(ticket_name: str, merch_row_name: str, delivered: int):
+    """
+    Toggle the delivered status of a single merch row on a ticket.
+    Permission check: look up the event from the ticket.
+    """
+    event_id = frappe.db.get_value(EVENT_TICKET, ticket_name, "event")
+    if not event_id:
+        frappe.throw("Ticket not found")
+    if not has_valid_permission(event_id):
+        frappe.throw(
+            "You are not authorized to update merch delivery for this event",
+            frappe.PermissionError,
+        )
+
+    frappe.db.set_value("FOSS Ticket Merch", merch_row_name, "delivered", int(delivered))
+    return True

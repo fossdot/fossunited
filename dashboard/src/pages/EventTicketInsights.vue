@@ -7,7 +7,6 @@
       </div>
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <TicketTierInsightCard :tier="today_stats" />
-        <TicketTshirtInsightCard :insight="ticket_insights.data.tshirt_insights" />
       </div>
       <div class="prose mt-4">
         <h4>Tier Insights</h4>
@@ -50,7 +49,6 @@ import { defineProps, reactive } from 'vue'
 import { createResource, LoadingIndicator, ListView } from 'frappe-ui'
 import { toast } from 'vue-sonner'
 import TicketTierInsightCard from '@/components/event/TicketTierInsightCard.vue'
-import TicketTshirtInsightCard from '@/components/event/TicketTshirtInsightCard.vue'
 import TicketList from '@/components/event/TicketList.vue'
 
 const props = defineProps({

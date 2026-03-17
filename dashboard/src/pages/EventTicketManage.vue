@@ -35,9 +35,6 @@
     <!-- Ticket Tier Section -->
     <TicketTierSection :event="event" />
 
-    <!-- Tshirt Section -->
-    <TicketTshirtSection :event="event" />
-
     <!-- Custom Fields -->
     <TicketCustomFieldsSection :event="event" />
 
@@ -46,7 +43,6 @@
 </template>
 <script setup>
 import TicketTierSection from '@/components/event/TicketTierSection.vue'
-import TicketTshirtSection from '@/components/event/TicketTshirtSection.vue'
 import TicketCustomFieldsSection from '@/components/event/TicketCustomFieldsSection.vue'
 import FreeTicketCodeSection from '@/components/event/FreeTicketCodeSection.vue'
 import { createResource } from 'frappe-ui'

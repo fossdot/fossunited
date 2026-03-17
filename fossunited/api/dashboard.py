@@ -11,6 +11,28 @@ from fossunited.utils.payments import (
 def get_event(name: str) -> dict:
     event = frappe.get_doc(EVENT, name)
 
+    # Parse merch item variant strings into lists for the frontend
+    merch_items = []
+    for m in event.merch_items or []:
+        if not m.enabled:
+            continue
+        extra = [u.strip() for u in (m.extra_images or "").splitlines() if u.strip()]
+        all_images = ([m.image] if m.image else []) + extra
+        merch_items.append(
+            {
+                "merch_name": m.merch_name,
+                "price": m.price,
+                "image": m.image or "",
+                "images": all_images,
+                "color_options": [
+                    c.strip() for c in (m.color_options or "").splitlines() if c.strip()
+                ],
+                "size_options": [
+                    s.strip() for s in (m.size_options or "").splitlines() if s.strip()
+                ],
+            }
+        )
+
     return {
         "name": event.name,
         "doctype": event.doctype,
@@ -19,6 +41,7 @@ def get_event(name: str) -> dict:
         "ticket_form_description": event.ticket_form_description,
         "paid_tshirts_available": event.paid_tshirts_available,
         "t_shirt_price": event.t_shirt_price,
+        "merch_items": merch_items,
         "tiers": event.tiers,
         "custom_fields": event.custom_fields,
     }

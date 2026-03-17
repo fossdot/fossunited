@@ -78,18 +78,30 @@ class FOSSEventTicket(Document):
                     "tshirt_size": attendee.get("tshirt_size"),
                     "tier": payment_meta_data.get("tier", {}).get("title"),
                     "custom_fields": [],
+                    "merch_items": [],
                 }
             )
 
+            # Add merch items to ticket
+            for item in attendee.get("merch_items", []):
+                if item.get("quantity", 0) > 0:
+                    ticket_doc.append(
+                        "merch_items",
+                        {
+                            "merch_name": item.get("merch_name"),
+                            "price": item.get("price"),
+                            "quantity": item.get("quantity", 1),
+                            "color": item.get("color", ""),
+                            "size": item.get("size", ""),
+                        },
+                    )
+
             # Determine which custom fields to use
             if custom_fields_apply_to_all:
-                # Use global custom fields for all attendees
                 custom_fields = global_custom_fields
             else:
-                # Use individual attendee's custom fields
                 custom_fields = attendee.get("custom_fields", {})
 
-            # Add custom fields to ticket
             for k, v in custom_fields.items():
                 if k and v:
                     ticket_doc.append(
@@ -209,12 +221,26 @@ def validate_payment_before_insert(doc: "RazorpayPayment", event: str):
 
     tshirt_price = frappe.db.get_value(EVENT, event_name, "t_shirt_price")
 
+    # SECURITY: Build merch price lookup from the DATABASE (server-side), never from
+    # client-submitted values. This prevents price-manipulation attacks where an attacker
+    # could modify merch prices in the browser before checkout.
+    merch_price_map = {
+        m.merch_name: m.price for m in frappe.get_doc(EVENT, event_name).merch_items or []
+    }
+
     for attendee in attendees:
         wants_tshirt = attendee.get("wants_tshirt", 0)
         calculated_amount += price
 
         if wants_tshirt:
             calculated_amount += tshirt_price
+
+        # Add merch costs for this attendee
+        for item in attendee.get("merch_items", []):
+            qty = int(item.get("quantity", 0))
+            merch_name = item.get("merch_name")
+            unit_price = merch_price_map.get(merch_name, 0)
+            calculated_amount += unit_price * qty
 
     if calculated_amount != doc.amount:
         frappe.throw(

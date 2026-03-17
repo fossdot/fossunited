@@ -80,10 +80,16 @@ watch(
       }
 
       if (doc.is_paid_event) {
-        sidebar_items.items.splice(1, 1, {
-          label: 'Tickets',
-          route: `/event/${route.params.id}/tickets`,
-        })
+        sidebar_items.items.splice(1, 1,
+          {
+            label: 'Tickets',
+            route: `/event/${route.params.id}/tickets`,
+          },
+          {
+            label: 'Merch',
+            route: `/event/${route.params.id}/merch`,
+          },
+        )
         sidebar_items.items.push({
           label: 'Check-Ins',
           route: `/event/${route.params.id}/checkins`,

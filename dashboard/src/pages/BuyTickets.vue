@@ -252,8 +252,9 @@
                 </div>
               </div>
 
+              <!-- Legacy single-tshirt (shown only when no merch_items defined) -->
               <div
-                v-if="event.data.paid_tshirts_available"
+                v-if="event.data.paid_tshirts_available && !event.data.merch_items?.length"
                 class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2"
               >
                 <FormControl
@@ -274,6 +275,13 @@
                   label="Size"
                 />
               </div>
+
+              <!-- New multi-merch picker -->
+              <AttendeeMerchPicker
+                v-if="event.data.merch_items?.length"
+                v-model="attendee.merch_items"
+                :merch-items="event.data.merch_items"
+              />
             </div>
           </div>
 
@@ -362,17 +370,29 @@
             <p class="justify-self-end">₹{{ checkoutInfo.tier.price * checkoutInfo.numSeats }}</p>
           </div>
 
+          <!-- Legacy tshirt row -->
           <div
-            v-if="event.data.paid_tshirts_available && numTShirtAdded > 0"
+            v-if="event.data.paid_tshirts_available && !event.data.merch_items?.length && numTShirtAdded > 0"
             class="grid grid-cols-3"
           >
             <p>T-Shirts</p>
             <p class="justify-self-center">
-              ₹{{ event.data.t_shirt_price }} x
-              {{ numTShirtAdded }}
+              ₹{{ event.data.t_shirt_price }} x {{ numTShirtAdded }}
             </p>
             <p class="justify-self-end">₹{{ numTShirtAdded * event.data.t_shirt_price }}</p>
           </div>
+          <!-- Merch line items -->
+          <template v-if="event.data.merch_items?.length">
+            <div
+              v-for="line in allMerchLines"
+              :key="line.key"
+              class="grid grid-cols-3 gap-1 text-sm"
+            >
+              <p class="truncate">{{ line.merch_name }}<span v-if="line.color || line.size" class="text-ink-gray-4"> ({{ [line.color, line.size].filter(Boolean).join(', ') }})</span></p>
+              <p class="justify-self-center">₹{{ line.price }} x {{ line.quantity }}</p>
+              <p class="justify-self-end">₹{{ line.price * line.quantity }}</p>
+            </div>
+          </template>
         </div>
         <hr class="my-2" />
         <div class="grid grid-cols-3 gap-2 font-semibold">
@@ -420,14 +440,24 @@
         </p>
         <p class="justify-self-end">₹{{ checkoutInfo.tier.price * checkoutInfo.numSeats }}</p>
       </div>
-      <div v-if="event.data.paid_tshirts_available && numTShirtAdded > 0" class="grid grid-cols-3">
+      <!-- Legacy tshirt row (mobile) -->
+      <div v-if="event.data.paid_tshirts_available && !event.data.merch_items?.length && numTShirtAdded > 0" class="grid grid-cols-3">
         <p>T-Shirts</p>
-        <p class="justify-self-center">
-          ₹{{ event.data.t_shirt_price }} x
-          {{ numTShirtAdded }}
-        </p>
+        <p class="justify-self-center">₹{{ event.data.t_shirt_price }} x {{ numTShirtAdded }}</p>
         <p class="justify-self-end">₹{{ numTShirtAdded * event.data.t_shirt_price }}</p>
       </div>
+      <!-- Merch line items (mobile) -->
+      <template v-if="event.data.merch_items?.length">
+        <div
+          v-for="line in allMerchLines"
+          :key="line.key"
+          class="grid grid-cols-3 gap-1 text-sm"
+        >
+          <p class="truncate">{{ line.merch_name }}<span v-if="line.color || line.size" class="text-ink-gray-4"> ({{ [line.color, line.size].filter(Boolean).join(', ') }})</span></p>
+          <p class="justify-self-center">₹{{ line.price }} x {{ line.quantity }}</p>
+          <p class="justify-self-end">₹{{ line.price * line.quantity }}</p>
+        </div>
+      </template>
       <hr class="my-2" />
     </div>
     <ErrorMessage v-if="errorMessage" class="m-2 mt-5" :message="errorMessage" />
@@ -470,6 +500,7 @@ import {
   RadioGroupOption,
 } from '@headlessui/vue'
 import RazorpayCheckout from '@/components/common/RazorpayCheckout.vue'
+import AttendeeMerchPicker from '@/components/tickets/AttendeeMerchPicker.vue'
 import { IconCircleCheckFilled, IconTicketOff } from '@tabler/icons-vue'
 import ThemeToggle from '@/components/ui/ThemeToggle.vue'
 
@@ -570,6 +601,7 @@ watch(
           wants_tshirt: false,
           tshirt_size: '',
           custom_fields: {},
+          merch_items: [],
         }
 
         // Initialize custom fields for new attendee if not applying to all
@@ -705,11 +737,30 @@ onMounted(() => {
 const totalAmount = computed(() => {
   let total = checkoutInfo.tier?.price * checkoutInfo.numSeats
 
-  if (event.data.paid_tshirts_available) {
+  // Legacy tshirt (when no merch_items defined)
+  if (event.data.paid_tshirts_available && !event.data.merch_items?.length) {
     total += numTShirtAdded.value * event.data.t_shirt_price
   }
 
+  // New multi-merch
+  for (const attendee of checkoutInfo.attendees) {
+    for (const item of attendee.merch_items || []) {
+      total += item.price * item.quantity
+    }
+  }
+
   return total
+})
+
+/** Flat list of all merch lines across all attendees for the order summary */
+const allMerchLines = computed(() => {
+  const lines = []
+  for (const attendee of checkoutInfo.attendees) {
+    for (const item of attendee.merch_items || []) {
+      lines.push({ ...item, key: `${attendee.email}-${item.merch_name}-${item.color}-${item.size}` })
+    }
+  }
+  return lines
 })
 
 const numTShirtAdded = computed(() => {

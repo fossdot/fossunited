@@ -25,6 +25,7 @@
   "tshirt_delivered",
   "column_break_qbfj",
   "tshirt_size",
+  "merch_items",
   "section_break_tzsu",
   "custom_fields",
   "section_break_ueio",
@@ -162,6 +163,12 @@
    "fieldname": "subscribe_chapter_mailing",
    "fieldtype": "Check",
    "label": "Subscribe to Mailing Group?"
+  },
+  {
+   "fieldname": "merch_items",
+   "fieldtype": "Table",
+   "label": "Merch Items",
+   "options": "FOSS Ticket Merch"
   }
  ],
  "links": [],
