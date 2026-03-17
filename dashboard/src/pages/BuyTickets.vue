@@ -10,7 +10,7 @@
       message: dialogError,
     }"
   ></Dialog>
-  <div v-if="event.data" class="bg-surface-gray-1 mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div v-if="event.data" class="bg-surface-gray-1 mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-36 md:pb-8">
     <div class="flex mb-6 items-center justify-between">
       <div class="flex gap-2 items-center">
         <a :href="redirectToEvent" class="font-semibold text-base hover:underline">{{
@@ -33,9 +33,9 @@
     </div>
     <div class="flex gap-6">
       <div
-        class="p-4 lg:px-8 md:py-8 border border-outline-gray-2 rounded-md bg-surface-white md:w-3/4"
+        class="p-4 lg:px-8 md:py-8 border border-outline-gray-2 rounded-md bg-surface-white w-full min-w-0 md:w-3/4"
       >
-        <h1 class="text-[2rem] font-bold">
+        <h1 class="text-2xl sm:text-[2rem] font-bold break-words leading-tight">
           Book Conference Tickets for {{ event.data.event_name }}
         </h1>
         <div
@@ -46,7 +46,7 @@
           <RadioGroupLabel class="text-lg font-semibold leading-6 text-ink-gray-8">
             Select a tier
           </RadioGroupLabel>
-          <div class="mt-4 grid grid-cols-1 gap-y-6 sm:grid-cols-3 sm:gap-x-4 md:min-w-[48rem]">
+          <div class="mt-4 grid grid-cols-1 gap-y-6 sm:grid-cols-3 sm:gap-x-4">
             <!-- Active Tiers -->
             <RadioGroupOption
               v-for="tier in activeTiers"
@@ -347,14 +347,12 @@
                 label="Billing Address"
               />
             </div>
-            <div class="my-2">
-              <Checkbox v-model="checkoutInfo.readRefundPolicy" size="sm"></Checkbox
-              ><span class="font-medium leading-normal text-ink-gray-8 >text-base">
+            <div class="my-2 flex items-start gap-2">
+              <Checkbox v-model="checkoutInfo.readRefundPolicy" size="sm" class="mt-0.5 shrink-0" />
+              <span class="text-sm font-medium leading-normal text-ink-gray-8">
                 I understand that tickets are non-refundable and have read the
-                <a href="/refund-transfer-policy" class="font-semibold underline"
-                  >Refund Policy</a
-                ></span
-              >
+                <a href="/refund-transfer-policy" class="font-semibold underline">Refund Policy</a>
+              </span>
             </div>
           </div>
         </div>
